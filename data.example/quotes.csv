@@ -1,0 +1,4 @@
+code,name,sector,close,gain_1d_pct,gain_3d_pct,gain_5d_pct,amount_billion,turnover_pct,volume_ratio,is_limit_up,board_count,limit_up_reason,is_st,above_ma5,above_ma10,long_upper_shadow,high_volume_failed_board,late_limit_up,one_word_board
+000001,示例科技A,AI算力,18.2,9.98,24,38,18.5,12,2.1,1,2,AI算力订单增长,0,1,1,0,0,0,0
+002001,示例光模块,AI算力,42.6,5.2,18.3,28.5,32,8.5,1.7,0,0,AI硬件景气延续,0,1,1,0,0,0,0
+605001,示例机器人,机器人,15.8,10,12.5,18,5.6,6,1.8,1,1,机器人政策催化,0,1,1,0,0,0,0

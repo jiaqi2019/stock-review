@@ -1,0 +1,23 @@
+{
+  "data_source": "csv",
+  "output_dir": "outputs",
+  "csv_dir": "data.example",
+  "market": {
+    "exclude_st": true,
+    "min_amount_billion": 1.0,
+    "main_board_prefixes": ["000", "001", "002", "003", "600", "601", "603", "605"]
+  },
+  "thresholds": {
+    "volume_ratio_min": 1.3,
+    "top_sector_count": 10,
+    "candidate_limit": 20,
+    "high_5d_gain_pct": 25.0,
+    "healthy_trend_bonus": 5,
+    "high_gain_risk_penalty": 10
+  },
+  "lark": {
+    "enabled": true,
+    "webhook_env": "LARK_WEBHOOK_URL",
+    "secret_env": "LARK_WEBHOOK_SECRET"
+  }
+}
