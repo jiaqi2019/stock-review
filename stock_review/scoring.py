@@ -132,58 +132,62 @@ class ReviewEngine:
         return candidates
 
     def _stock_status_score(self, stock: Stock, reasons: list[str]) -> float:
+        weight = self._w("stock_status", 15)
         if stock.board_count >= 3:
             reasons.append(f"板块高辨识度连板，{stock.board_count}连板")
-            return 15
+            return weight
         if stock.is_limit_up:
             reasons.append("涨停确认强度")
-            return 11
+            return weight * 0.73
         if stock.volume_ratio >= float(self.thresholds.get("volume_ratio_min", 1.3)) and stock.gain_1d_pct > 3:
             reasons.append(f"日内放量走强，量比{stock.volume_ratio:.2f}")
-            return 6
-        return max(0, self._available(stock.gain_3d_pct) / 10 * 7)
+            return weight * 0.40
+        return max(0, self._available(stock.gain_3d_pct) / 10 * weight * 0.47)
 
     def _reason_score(self, stock: Stock, reasons: list[str]) -> float:
+        weight = self._w("reason_sustainability", 10)
         text = stock.limit_up_reason
         if not text:
-            return 2
+            return weight * 0.20
         durable_words = ["业绩", "订单", "涨价", "政策", "国产替代", "AI", "算力", "半导体", "机器人", "电力"]
-        score = 5
+        score = weight * 0.50
         if any(word in text for word in durable_words):
-            score += 5
+            score += weight * 0.50
             reasons.append(f"逻辑具备持续性：{text}")
         else:
             reasons.append(f"涨停原因：{text}")
-        return min(10, score)
+        return min(weight, score)
 
     def _lhb_score(self, stock: Stock, lhb_by_code, reasons: list[str], risks: list[str]) -> float:
         record = lhb_by_code.get(stock.code)
         if not record:
             return 0
+        weight = self._w("lhb_quality", 10)
         score = 0.0
         if record.net_buy_billion > 0:
-            score += min(4, record.net_buy_billion / max(stock.amount_billion, 0.1) * 20)
+            score += min(weight * 0.40, record.net_buy_billion / max(stock.amount_billion, 0.1) * weight * 2)
             reasons.append(f"龙虎榜净买入{record.net_buy_billion:.2f}亿")
         if record.institution_net_billion > 0:
-            score += 3
+            score += weight * 0.30
             reasons.append("机构净买入")
         if record.top_buyer_share_pct >= 45:
-            score -= 5
+            score -= weight * 0.50
             risks.append(f"龙虎榜一家独大，买一占比{record.top_buyer_share_pct:.0f}%")
         elif 0 < record.top_buyer_share_pct <= 30 and record.net_buy_billion > 0:
-            score += 3
+            score += weight * 0.30
             reasons.append("龙虎榜多席位合力")
         return score
 
     def _price_volume_score(self, stock: Stock, reasons: list[str], risks: list[str]) -> float:
+        weight = self._w("price_volume", 5)
         score = 0.0
         if stock.volume_ratio >= float(self.thresholds.get("volume_ratio_min", 1.3)):
-            score += 2
+            score += weight * 0.40
             reasons.append(f"量比{stock.volume_ratio:.2f}超过阈值")
         if stock.turnover_pct >= 5:
-            score += 1.5
+            score += weight * 0.30
         if self._available(stock.gain_5d_pct) >= 0 and stock.above_ma5 and stock.above_ma10:
-            score += 1.5
+            score += weight * 0.30
             reasons.append("站上5日/10日线")
         if stock.long_upper_shadow:
             score -= 3

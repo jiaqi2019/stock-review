@@ -43,6 +43,7 @@ class AkshareProvider:
             market_scope = "limit_pool"
             quotes = self._stocks_from_limit_pool(limit_pool)
         quotes = self._attach_limit_up_info(quotes, trade_date, limit_pool)
+        quotes = self._promote_uncategorized_momentum(quotes)
         sectors = self._build_sectors(trade_date, quotes, limit_pool)
         lhb_records = self._build_lhb(trade_date)
         quotes = self._attach_history_metrics(quotes, sectors, trade_date)
@@ -54,7 +55,7 @@ class AkshareProvider:
             date=date,
             total_amount_billion=sum(x.amount_billion for x in quotes),
             limit_up_count=sum(1 for x in quotes if x.is_limit_up),
-            limit_down_count=sum(1 for x in quotes if x.gain_1d_pct <= -9.8),
+            limit_down_count=self._limit_down_count(trade_date, quotes),
             advancers=sum(1 for x in quotes if x.gain_1d_pct > 0),
             decliners=sum(1 for x in quotes if x.gain_1d_pct < 0),
             max_board_count=max((x.board_count for x in quotes), default=0),
@@ -200,8 +201,8 @@ class AkshareProvider:
                     net_buy_billion=net / 100000000,
                     buy_total_billion=buy / 100000000,
                     sell_total_billion=sell / 100000000,
-                    top_buyer_share_pct=0.0,
-                    institution_net_billion=0.0,
+                    top_buyer_share_pct=_first_number(row, ["买一占比", "买一净买占比", "top_buyer_share_pct"]) or -1.0,
+                    institution_net_billion=_first_number(row, ["机构净买额", "机构净额", "institution_net_billion"]) / 100000000,
                     note=str(row.get("解读") or row.get("上榜原因") or ""),
                 )
             )
@@ -213,6 +214,14 @@ class AkshareProvider:
         except Exception as exc:
             print(f"AKShare warning: 涨停池获取失败: {type(exc).__name__}: {exc}")
             return self.pd.DataFrame()
+
+    def _limit_down_count(self, trade_date: str, stocks: list[Stock]) -> int:
+        try:
+            df = self._cache_df(f"dt_pool_{trade_date}", lambda: self.ak.stock_zt_pool_dtgc_em(date=trade_date))
+            return len(df)
+        except Exception as exc:
+            print(f"AKShare warning: 跌停池获取失败，使用涨跌幅估算: {type(exc).__name__}: {exc}")
+            return sum(1 for x in stocks if x.gain_1d_pct <= -9.8)
 
     def _attach_limit_up_info(self, stocks: list[Stock], trade_date: str, pool=None) -> list[Stock]:
         if pool is None:
@@ -244,6 +253,21 @@ class AkshareProvider:
                     one_word_board=_is_one_word_board(info),
                 )
             )
+        return updated
+
+    def _promote_uncategorized_momentum(self, stocks: list[Stock]) -> list[Stock]:
+        volume_ratio_min = float(self.config.get("thresholds", {}).get("volume_ratio_min", 1.3))
+        min_amount = float(self.config.get("market", {}).get("min_amount_billion", 1.0))
+        updated: list[Stock] = []
+        for stock in stocks:
+            if stock.sector != "未分类" or stock.is_limit_up:
+                updated.append(stock)
+                continue
+            is_momentum = stock.amount_billion >= min_amount and (
+                (stock.volume_ratio >= volume_ratio_min and stock.gain_1d_pct >= 3)
+                or stock.gain_1d_pct >= 5
+            )
+            updated.append(replace(stock, sector="未分类异动") if is_momentum else stock)
         return updated
 
     def _stocks_from_limit_pool(self, pool) -> list[Stock]:
@@ -356,6 +380,7 @@ class AkshareProvider:
             stock.code
             for stock in stocks
             if stock.is_limit_up
+            or stock.sector == "未分类异动"
             or stock.volume_ratio >= volume_ratio_min
             or sector_rank.get(stock.sector, 999) < int(self.config.get("thresholds", {}).get("top_sector_count", 10))
         }
@@ -458,7 +483,7 @@ class AkshareProvider:
             except Exception:
                 df = None
         if df is None or len(df) < 2:
-            return UNAVAILABLE_PCT, UNAVAILABLE_PCT, True, True, False
+            return UNAVAILABLE_PCT, UNAVAILABLE_PCT, False, False, False
         close_col = _pick_col(df, ["收盘", "close"])
         high_col = _pick_col(df, ["最高", "high"])
         open_col = _pick_col(df, ["开盘", "open"])

@@ -76,7 +76,7 @@ class CsvProvider:
     def _market(self, date: str, sectors: list[Sector], stocks: list[Stock]) -> MarketSnapshot:
         return MarketSnapshot(
             date=date,
-            total_amount_billion=sum(s.amount_billion for s in sectors),
+            total_amount_billion=sum(s.amount_billion for s in stocks),
             limit_up_count=sum(1 for s in stocks if s.is_limit_up),
             limit_down_count=sum(1 for s in stocks if s.gain_1d_pct <= -9.8),
             advancers=sum(1 for s in stocks if s.gain_1d_pct > 0),
