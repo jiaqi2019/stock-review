@@ -353,6 +353,7 @@ class AkshareProvider:
                     limit_up_count=sum(1 for x in sector_stocks if x.is_limit_up),
                     advancers=sum(1 for x in sector_stocks if x.gain_1d_pct > 0),
                     decliners=sum(1 for x in sector_stocks if x.gain_1d_pct < 0),
+                    **_sector_breadth(sector_stocks),
                 )
             )
 
@@ -369,6 +370,7 @@ class AkshareProvider:
                     limit_up_count=sum(1 for x in sector_stocks if x.is_limit_up),
                     advancers=sum(1 for x in sector_stocks if x.gain_1d_pct > 0),
                     decliners=sum(1 for x in sector_stocks if x.gain_1d_pct < 0),
+                    **_sector_breadth(sector_stocks),
                 )
             )
         return refreshed
@@ -580,6 +582,18 @@ def _avg(values: list[float]) -> float:
 def _avg_available(values: list[float]) -> float:
     available = [value for value in values if value > -900]
     return _avg(available) if available else UNAVAILABLE_PCT
+
+
+def _sector_breadth(stocks: list[Stock]) -> dict[str, float | int]:
+    count = len(stocks)
+    if count == 0:
+        return {"stock_count": 0, "limit_up_ratio": 0.0, "gain_5_ratio": 0.0, "gain_3_ratio": 0.0}
+    return {
+        "stock_count": count,
+        "limit_up_ratio": sum(1 for stock in stocks if stock.is_limit_up) / count * 100,
+        "gain_5_ratio": sum(1 for stock in stocks if stock.gain_1d_pct >= 5) / count * 100,
+        "gain_3_ratio": sum(1 for stock in stocks if stock.gain_1d_pct >= 3) / count * 100,
+    }
 
 
 def _market_symbol(code: str) -> str:

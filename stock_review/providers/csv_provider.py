@@ -36,6 +36,10 @@ class CsvProvider:
             limit_up_count=int(_f(row.get("limit_up_count"))),
             advancers=int(_f(row.get("advancers"))),
             decliners=int(_f(row.get("decliners"))),
+            stock_count=int(_f(row.get("stock_count"))),
+            limit_up_ratio=_f(row.get("limit_up_ratio")),
+            gain_5_ratio=_f(row.get("gain_5_ratio")),
+            gain_3_ratio=_f(row.get("gain_3_ratio")),
         )
 
     def _stock(self, row: dict) -> Stock:

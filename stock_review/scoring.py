@@ -67,11 +67,14 @@ class ReviewEngine:
         fund_flow = max(0.0, sector.fund_flow_billion)
         composite = (
             min(20.0, gain_3d) * 0.45
-            + min(10.0, sector.limit_up_count) * 2.0
+            + min(10.0, sector.limit_up_count) * 1.0
+            + min(20.0, sector.limit_up_ratio) * 0.65
+            + min(40.0, sector.gain_5_ratio) * 0.18
+            + min(60.0, sector.gain_3_ratio) * 0.10
             + min(80.0, sector.amount_billion) * 0.08
             + min(30.0, fund_flow) * 0.25
         )
-        return (composite, sector.limit_up_count, sector.amount_billion)
+        return (composite, sector.limit_up_ratio, sector.gain_5_ratio, sector.limit_up_count, sector.amount_billion)
 
     def _score_candidates(self, snapshot: MarketSnapshot, top_sectors, market_score: float) -> list[Candidate]:
         sector_by_name = sector_map(top_sectors)
@@ -102,10 +105,20 @@ class ReviewEngine:
             if sector.fund_flow_billion > 0:
                 reasons.append(f"板块资金净流入{sector.fund_flow_billion:.1f}亿")
 
-            structure_score = min(self._w("sector_limit_up_structure", 15), sector.limit_up_count * 2.5)
+            structure_weight = self._w("sector_limit_up_structure", 15)
+            breadth_reliable = self._breadth_reliable(sector)
+            if breadth_reliable:
+                structure_score = min(
+                    structure_weight,
+                    sector.limit_up_ratio * 0.45 + sector.gain_5_ratio * 0.18 + sector.gain_3_ratio * 0.08,
+                )
+            else:
+                structure_score = min(structure_weight, sector.limit_up_count * 1.5)
             score += structure_score
-            if sector.limit_up_count >= 3:
-                reasons.append(f"板块涨停梯队{sector.limit_up_count}只")
+            if breadth_reliable and (sector.limit_up_count >= 3 or sector.gain_5_ratio >= 10):
+                reasons.append(f"板块扩散：涨停{sector.limit_up_ratio:.1f}%，5%+{sector.gain_5_ratio:.1f}%，3%+{sector.gain_3_ratio:.1f}%")
+            elif sector.limit_up_count >= 3:
+                reasons.append(f"板块涨停{sector.limit_up_count}只，扩散比例样本不足")
 
             score += self._stock_status_score(stock, reasons)
             score += self._reason_score(stock, reasons)
@@ -258,3 +271,6 @@ class ReviewEngine:
 
     def _available(self, value: float) -> float:
         return 0.0 if value < -900 else value
+
+    def _breadth_reliable(self, sector) -> bool:
+        return sector.stock_count > 0 and not (sector.limit_up_count > 0 and sector.stock_count <= sector.limit_up_count)

@@ -15,6 +15,10 @@ class Sector:
     limit_up_count: int = 0
     advancers: int = 0
     decliners: int = 0
+    stock_count: int = 0
+    limit_up_ratio: float = 0.0
+    gain_5_ratio: float = 0.0
+    gain_3_ratio: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -101,8 +105,13 @@ class ReviewResult:
         for sector in self.top_sectors[:5]:
             fund_flow = "不可用" if sector.fund_flow_billion < 0 else f"{sector.fund_flow_billion:.2f}亿"
             gain_3d = "不可用" if sector.gain_3d_pct < -900 else f"{sector.gain_3d_pct:.2f}%"
+            breadth = (
+                "样本不足"
+                if sector.stock_count <= sector.limit_up_count and sector.limit_up_count > 0
+                else f"涨停{sector.limit_up_count}只/{sector.limit_up_ratio:.1f}%，5%+占比{sector.gain_5_ratio:.1f}%"
+            )
             lines.append(
-                f"- {sector.name}: 3日{gain_3d}，今日资金{fund_flow}，涨停{sector.limit_up_count}只"
+                f"- {sector.name}: 3日{gain_3d}，今日资金{fund_flow}，{breadth}"
             )
         lines.append("")
         lines.append("明日候选池：")

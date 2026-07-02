@@ -22,14 +22,19 @@ def write_markdown_report(result: ReviewResult, output_dir: Path) -> Path:
         "",
         "## 二、主线板块",
         "",
-        "| 板块 | 3日涨幅 | 今日涨幅 | 资金流入 | 成交额 | 涨停数 |",
-        "|---|---:|---:|---:|---:|---:|",
+        "| 板块 | 3日涨幅 | 今日涨幅 | 资金流入 | 成交额 | 样本数 | 涨停 | 涨停占比 | 5%+占比 | 3%+占比 |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ])
     for sector in result.top_sectors:
         fund_flow = "不可用" if sector.fund_flow_billion < 0 else f"{sector.fund_flow_billion:.2f}亿"
         gain_3d = "不可用" if sector.gain_3d_pct < -900 else f"{sector.gain_3d_pct:.2f}%"
+        breadth_reliable = not (sector.stock_count <= sector.limit_up_count and sector.limit_up_count > 0)
+        limit_up_ratio = f"{sector.limit_up_ratio:.1f}%" if breadth_reliable else "样本不足"
+        gain_5_ratio = f"{sector.gain_5_ratio:.1f}%" if breadth_reliable else "样本不足"
+        gain_3_ratio = f"{sector.gain_3_ratio:.1f}%" if breadth_reliable else "样本不足"
         lines.append(
-            f"| {sector.name} | {gain_3d} | {sector.gain_1d_pct:.2f}% | {fund_flow} | {sector.amount_billion:.2f}亿 | {sector.limit_up_count} |"
+            f"| {sector.name} | {gain_3d} | {sector.gain_1d_pct:.2f}% | {fund_flow} | {sector.amount_billion:.2f}亿 | "
+            f"{sector.stock_count} | {sector.limit_up_count} | {limit_up_ratio} | {gain_5_ratio} | {gain_3_ratio} |"
         )
 
     lines.extend([
